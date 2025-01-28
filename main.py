@@ -3,9 +3,14 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi import Body
-from db import crud, models, database
+from db import crud, models
 
 app = FastAPI()
+
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
 
 @app.post("/counties/", response_model=models.County)
 async def create_county(county: models.CountyBase):
