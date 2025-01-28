@@ -1,0 +1,59 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.env
+.env.*
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+venv.bak/
+env.bak/
+
+# FastAPI specific
+*.log
+instance/
+*.db
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# Testing and coverage
+.coverage
+.tox/
+.pytest_cache/
+htmlcov/
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.manifest
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+*.pid
+
+# Node
+node_modules/
+
+# Migrations (optional, depending on your use case)
+migrations/
+alembic/
