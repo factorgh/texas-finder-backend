@@ -1,6 +1,7 @@
+# Correct import for schemas
+  # adjust if needed
 from sqlalchemy.orm import Session
-from .models import County, Lease, Operator
-from .crud import CountyCreate, LeaseCreate, OperatorCreate
+from models import County, Lease, Operator,CountyCreate, LeaseCreate, OperatorCreate
 
 def create_county(db: Session, county: CountyCreate):
     db_county = County(name=county.name)
