@@ -1,42 +1,102 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
-import database
-import crud
+from typing import List, Optional
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
 import models
+from automation import run_every_two_weeks
 
+import crud
+import schemas
+from database import engine, Base, get_db
 
 app = FastAPI()
 
-# Dependency to get the DB session
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-@app.post("/counties/", response_model=models.County)
-def create_county(county: models.CountyCreate, db: Session = Depends(get_db)):
+# Run cron job
+run_every_two_weeks()
+
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins, you can restrict to specific domains if needed
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
+
+# Create county
+@app.post("/counties/", response_model=schemas.County)
+def create_county(county: schemas.CountyCreate, db: Session = Depends(get_db)):
     return crud.create_county(db=db, county=county)
 
-@app.post("/operators/", response_model=models.Operator)
-def create_operator(operator: models.OperatorCreate, db: Session = Depends(get_db)):
-    return crud.create_operator(db=db, operator=operator)
-
-@app.post("/leases/", response_model=models.Lease)
-def create_lease(lease: models.LeaseCreate, county_id: int, operator_id: int, db: Session = Depends(get_db)):
-    return crud.create_lease(db=db, lease=lease, county_id=county_id, operator_id=operator_id)
-
-@app.get("/counties/", response_model=List[models.County])
+# Get all counties
+@app.get("/counties/", response_model=List[schemas.County])
 def get_counties(db: Session = Depends(get_db)):
     return crud.get_counties(db=db)
 
-@app.get("/operators/", response_model=List[models.Operator])
+# Get county by ID
+@app.get("/counties/{county_id}", response_model=Optional[schemas.County])
+def get_county(county_id: int, db: Session = Depends(get_db)):
+    county = crud.get_county_by_id(db=db, county_id=county_id)
+    if county is None:
+        raise HTTPException(status_code=404, detail="County not found")
+    return county
+
+# Create operator
+@app.post("/operators/", response_model=schemas.Operator)
+def create_operator(operator: schemas.OperatorCreate, db: Session = Depends(get_db)):
+    return crud.create_operator(db=db, operator=operator)
+
+# Get all operators
+@app.get("/operators/", response_model=List[schemas.Operator])
 def get_operators(db: Session = Depends(get_db)):
     return crud.get_operators(db=db)
 
-@app.get("/leases/", response_model=List[models.Lease])
+# Get operator by ID
+@app.get("/operators/{operator_id}", response_model=Optional[schemas.Operator])
+def get_operator(operator_id: int, db: Session = Depends(get_db)):
+    operator = crud.get_operator_by_id(db=db, operator_id=operator_id)
+    if operator is None:
+        raise HTTPException(status_code=404, detail="Operator not found")
+    return operator
+
+# Create lease
+@app.post("/leases/", response_model=schemas.Lease)
+def create_lease(lease: schemas.LeaseCreate, county_id: int, operator_id: int, db: Session = Depends(get_db)):
+    return crud.create_lease(db=db, lease=lease, county_id=county_id, operator_id=operator_id)
+
+# Get all leases
+@app.get("/leases/", response_model=List[schemas.Lease])
 def get_leases(db: Session = Depends(get_db)):
     return crud.get_leases(db=db)
 
+# Get lease by ID
+@app.get("/leases/{lease_id}", response_model=Optional[schemas.Lease])
+def get_lease(lease_id: int, db: Session = Depends(get_db)):
+    lease = crud.get_lease_by_id(db=db, lease_id=lease_id)
+    if lease is None:
+        raise HTTPException(status_code=404, detail="Lease not found")
+    return lease
+
+
+
+
+# STATISTICS ONLY
+@app.get("/summary")
+def get_statistics(db: Session = Depends(get_db)):
+    # Counting the total number of permits
+    total_permits = db.query(func.count(models.Permit.id)).scalar()
+
+    # Counting the total number of operators
+    total_operators = db.query(func.count(models.Operator.id)).scalar()
+
+    # Counting the total number of leases
+    total_leases = db.query(func.count(models.Lease.id)).scalar()
+
+    return {
+        "total_permits": total_permits,
+        "total_operators": total_operators,
+        "total_leases": total_leases
+    }

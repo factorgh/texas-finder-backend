@@ -1,8 +1,8 @@
-# Correct import for schemas
-  # adjust if needed
-from sqlalchemy.orm import Session
-from models import County, Lease, Operator,CountyCreate, LeaseCreate, OperatorCreate
-
+from sqlalchemy.orm import Session,noload,load_only
+from schemas import CountyCreate, LeaseCreate, OperatorCreate
+from models import County, Lease, Operator
+from sqlalchemy.orm import selectinload
+# Create functions
 def create_county(db: Session, county: CountyCreate):
     db_county = County(name=county.name)
     db.add(db_county)
@@ -31,11 +31,28 @@ def create_lease(db: Session, lease: LeaseCreate, county_id: int, operator_id: i
     db.refresh(db_lease)
     return db_lease
 
-def get_counties(db: Session):
-    return db.query(County).all()
+# Get all functions@app.get("/counties")
 
+
+def get_counties(db: Session):
+    return db.query(County).options(
+        noload(County.leases),
+        noload(County.operators),
+        noload(County.permits),
+        load_only(County.id, County.name)
+    ).all()
 def get_operators(db: Session):
     return db.query(Operator).all()
 
 def get_leases(db: Session):
     return db.query(Lease).all()
+
+# Get by ID functions
+def get_county_by_id(db: Session, county_id: int):
+    return db.query(County).filter(County.id == county_id).first()
+
+def get_operator_by_id(db: Session, operator_id: int):
+    return db.query(Operator).filter(Operator.id == operator_id).first()
+
+def get_lease_by_id(db: Session, lease_id: int):
+    return db.query(Lease).filter(Lease.id == lease_id).first()

@@ -3,9 +3,9 @@ from pydantic import BaseModel
 
 
 class LeaseBase(BaseModel):
-    lease_number: str
-    lease_name: str
-    operator_name: str
+    lease_number:  Optional[str] = None 
+    lease_name:  Optional[str] = None 
+    operator_name:  Optional[str] = None 
 
 class LeaseCreate(LeaseBase):
     pass
@@ -17,10 +17,10 @@ class Lease(LeaseBase):
         orm_mode = True
 
 class OperatorBase(BaseModel):
-    operator_number: str
-    operator_name: str
-    location:str
-    leases_number:str
+    operator_number:  Optional[str] = None 
+    operator_name:  Optional[str] = None 
+    location: Optional[str] = None 
+    leases_number: Optional[str] = None 
 
 class OperatorCreate(OperatorBase):
     pass
@@ -32,13 +32,13 @@ class Operator(OperatorBase):
         orm_mode = True
 
 class PermitBase(BaseModel):
-    api: str
-    well:str
-    operator:str
-    application_type:str
-    drill_type:str
-    submitted:str
-    approved:str
+    api:  Optional[str] = None 
+    well: Optional[str] = None 
+    operator: Optional[str] = None 
+    application_type: Optional[str] = None 
+    drill_type: Optional[str] = None 
+    submitted: Optional[str] = None 
+    approved: Optional[str] = None 
 
 class PermitCreate(PermitBase):
     pass
@@ -51,7 +51,7 @@ class Permit(PermitBase):
 
 
 class CountyBase(BaseModel):
-    name: str
+    name:  Optional[str] = None 
     leases: Optional[List[LeaseCreate]] = []
     operators: Optional[List[OperatorCreate]] = []
     permits: Optional[List[PermitCreate]] = []
@@ -63,7 +63,7 @@ class County(CountyBase):
     id: int
 
     class Config:
-        orm_mode = True
+       from_attribute = True
 
 
 

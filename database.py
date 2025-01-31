@@ -32,6 +32,13 @@ except Exception as e:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # # ✅ Fix: Add String(length) for MySQL
 # class County(Base):
 #     __tablename__ = "counties"

@@ -7,13 +7,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-password = os.environ["LOCAL_PASS"]
-user= os.environ["LOCAL_USER"]
+password = os.environ["REMOTE_PASS"]
+user= os.environ["REMOTE_USER"]
+host = os.environ["REMOTE_HOST"]
+
 
 # SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://databases_aziz:{password}@databases.adroit360.com/databases_texas"
-
+# localhost:3306
 # Database connection
-DATABASE_URL = f"mysql+mysqlconnector://root:{password}@localhost:3306/databases_texas"
+DATABASE_URL = f"mysql+mysqlconnector://{user}:{password}@{host}/databases_texas"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 session = Session()
