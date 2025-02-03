@@ -1,10 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, APIRouter
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 import models
 from automation import run_every_two_weeks
+import stripe # type: ignore
+import os
+from database import get_db
+from models import User, Subscription
+from schemas import CheckoutRequest,CheckoutResponse
+
+router = APIRouter()
 
 import crud
 import schemas
@@ -20,7 +27,7 @@ run_every_two_weeks()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins, you can restrict to specific domains if needed
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allows all headers
@@ -100,3 +107,59 @@ def get_statistics(db: Session = Depends(get_db)):
         "total_operators": total_operators,
         "total_leases": total_leases
     }
+
+
+# Stripe payment and subscription
+
+# Set your Stripe secret key
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Secure API Key
+
+router = APIRouter()
+
+@router.post("/create-checkout-session", response_model=CheckoutResponse)
+def create_checkout_session(request: CheckoutRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        # ✅ Optional: Check if user already has a Stripe customer ID
+        if not user.stripe_customer_id:
+            customer = stripe.Customer.create(
+                email=user.email,
+                name=user.full_name
+            )
+            user.stripe_customer_id = customer.id
+            db.commit()  # ✅ Save customer ID in DB
+
+        # ✅ Create a Stripe Checkout Session
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",
+            customer=user.stripe_customer_id,  # ✅ Assign user to Stripe customer
+            line_items=[
+                {
+                    "price": request.price_id,  # Stripe `price_id`
+                    "quantity": 1,
+                }
+            ],
+            metadata={"user_id": request.user_id},  # ✅ Track user for webhook
+            success_url="http://localhost:5173/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="http://localhost:5173/cancel",
+        )
+
+        # ✅ Save Subscription in Database
+        new_subscription = Subscription(
+            user_id=request.user_id,
+            stripe_subscription_id=session.id,
+            status="pending"
+        )
+        db.add(new_subscription)
+        db.commit()
+
+        return {"session_url": session.url}
+
+    except Exception as e:
+        db.rollback()  # ✅ Prevent partial commits
+        raise HTTPException(status_code=400, detail=str(e))

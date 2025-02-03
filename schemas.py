@@ -67,3 +67,13 @@ class County(CountyBase):
 
 
 
+# Stripe schema
+
+
+class CheckoutRequest(BaseModel):
+    user_id: int
+    price_id: str
+
+
+class CheckoutResponse(BaseModel):
+    session_url: str

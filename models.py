@@ -1,5 +1,5 @@
 from database import Base
-from sqlalchemy import  Column, Integer, String, ForeignKey
+from sqlalchemy import  Column, Integer, String, ForeignKey,Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 # ✅ Fix: Add String(length) for MySQL
 class County(Base):
@@ -50,3 +50,29 @@ class Permit(Base):
     
 
 
+# User and Subscription section
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    name = Column(String, nullable=True)
+    contact = Column(String, nullable=True)
+    services = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+    password = Column(String, nullable=False)
+    stripe_customer_id = Column(String, nullable=True)
+    is_subscribed = Column(Boolean, default=False)
+
+    subscriptions = relationship("Subscription", back_populates="user")
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    stripe_subscription_id = Column(String, unique=True, nullable=False)
+    status = Column(String, default="inactive")
+
+    user = relationship("User", back_populates="subscriptions")
