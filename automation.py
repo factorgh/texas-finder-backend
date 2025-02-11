@@ -12,7 +12,7 @@ def run_every_two_weeks():
 
 # Create and configure scheduler
 scheduler = BackgroundScheduler()
-scheduler.add_job(run_every_two_weeks, IntervalTrigger(minutes=2))
+scheduler.add_job(run_every_two_weeks, IntervalTrigger(weeks=2))
 scheduler.start()
 
 print("--------------------------------Scheduler System Started--------------------------------")

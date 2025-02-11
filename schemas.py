@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel,EmailStr
 
 
 class LeaseBase(BaseModel):
@@ -72,8 +72,24 @@ class County(CountyBase):
 
 class CheckoutRequest(BaseModel):
     user_id: int
-    price_id: str
+    price: int
 
 
 class CheckoutResponse(BaseModel):
     session_url: str
+
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    username: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

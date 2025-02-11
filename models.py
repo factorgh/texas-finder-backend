@@ -1,6 +1,8 @@
 from database import Base
 from sqlalchemy import  Column, Integer, String, ForeignKey,Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+
+
 # ✅ Fix: Add String(length) for MySQL
 class County(Base):
     __tablename__ = "counties"
@@ -52,27 +54,34 @@ class Permit(Base):
 
 # User and Subscription section
 
+
+
 class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    name = Column(String, nullable=True)
-    contact = Column(String, nullable=True)
-    services = Column(String, nullable=True)
-    country = Column(String, nullable=True)
-    password = Column(String, nullable=False)
-    stripe_customer_id = Column(String, nullable=True)
+    email = Column(String(255), unique=True, nullable=False)
+    username = Column(String(255), nullable=True)
+    contact = Column(String(255), nullable=True)
+    services = Column(String(255), nullable=True)
+    country = Column(String(255), nullable=True)
+    password = Column(String(255), nullable=False)
+    stripe_customer_id = Column(String(255), nullable=True)
     is_subscribed = Column(Boolean, default=False)
+    subscription_status = Column(String(50), default="inactive")  # ✅ Track status
 
-    subscriptions = relationship("Subscription", back_populates="user")
+    subscriptions = relationship("Subscription", back_populates="user", uselist=False)  # ✅ One-to-one
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    stripe_subscription_id = Column(String, unique=True, nullable=False)
-    status = Column(String, default="inactive")
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)  # ✅ One subscription per user
+    stripe_subscription_id = Column(String(255), nullable=True)  # Nullable because it's not always available at checkout
+    checkout_session_id = Column(String(255),nullable=False)  # ✅ Store checkout session ID
+    status = Column(String(255), default="inactive")
 
     user = relationship("User", back_populates="subscriptions")
+
+
+
