@@ -14,6 +14,7 @@ from schemas import CheckoutRequest,CheckoutResponse,ChangePasswordRequest
 import auth
 import secrets
 import email_helper
+from datetime import datetime, timedelta
 
 
 # Initialize database
@@ -202,72 +203,95 @@ async def user(user:user_dependency,db:db_dependency):
 STRIPE_SECRET = "whsec_2659890a063d46e3d08b474fddc6c89960e65a4bac35879befb917565bd307ec"
 
 
+pending_users = {}
+
 @app.post("/webhook/")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get("Stripe-Signature", "")
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_SECRET)  # Replace with your actual webhook secret
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_SECRET)
     except stripe.error.SignatureVerificationError:
         return {"error": "Invalid signature"}, 400
 
+    # ✅ Checkout session completed (store user_id in cache)
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         user_id = session["metadata"]["user_id"]
-        checkout_session_id = session["id"]
         stripe_subscription_id = session.get("subscription")
 
         print(f"✅ Checkout Completed: User {user_id}, Subscription ID {stripe_subscription_id}")
 
+        # ✅ Store user_id temporarily in cache
+        if stripe_subscription_id:
+            pending_users[stripe_subscription_id] = user_id  # Store user_id linked to subscription
+
         user = db.query(models.User).filter(models.User.id == user_id).first()
         if user:
-            # ✅ Create or update subscription
             subscription = db.query(models.Subscription).filter(models.Subscription.user_id == user_id).first()
             if not subscription:
-                subscription = models.Subscription(user_id=user_id, checkout_session_id=checkout_session_id)
+                subscription = models.Subscription(
+                    user_id=user_id,
+                    stripe_subscription_id=stripe_subscription_id,
+                    status="pending"
+                )
                 db.add(subscription)
-            print('------------------------------Subscription ID-------------------------')
-            print(subscription.stripe_subscription_id)
-            subscription.stripe_subscription_id = stripe_subscription_id
-            subscription.status = "active"
-            user.is_subscribed = True
-            user.subscription_status = "active"
+            else:
+                subscription.stripe_subscription_id = stripe_subscription_id
+                subscription.status = "pending"
 
             db.commit()
 
-    elif event["type"] == "invoice.payment_failed":
+    # ✅ Payment successfully processed
+    elif event["type"] == "invoice.payment_succeeded":
         invoice = event["data"]["object"]
-        stripe_subscription_id = invoice["subscription"]
+        print("------------------------------------------Invoice ------------------------------------")
+        print(f"Invoice ID: {invoice.id}")
+        stripe_subscription_id = invoice.get("subscription")
 
-        print(f"❌ Payment Failed: Subscription {stripe_subscription_id}")
+        print(f"💰 Payment Succeeded for Subscription {stripe_subscription_id}")
 
+        # ✅ Retrieve user_id from cache
+        user_id = pending_users.get(stripe_subscription_id)  # Fetch user_id
+
+        if not user_id:
+            print("⚠️ Warning: User ID not found in cache!")
+            return {"error": "User ID not found"}, 400
+
+        amount_paid = invoice["amount_paid"] / 100  # Convert from cents
+        currency = invoice["currency"]
+        stripe_customer_id = invoice["customer"]
+
+        # ✅ Update subscription status
         subscription = db.query(models.Subscription).filter(models.Subscription.stripe_subscription_id == stripe_subscription_id).first()
         if subscription:
-            user = db.query(models.User).filter(models.User.id == subscription.user_id).first()
-            if user:
-                user.subscription_status = "past_due"
-                user.is_subscribed = False  # ✅ Mark as unsubscribed
-                db.commit()
+            subscription.status = "active"
 
-    elif event["type"] == "customer.subscription.deleted":
-        subscription = event["data"]["object"]
-        stripe_subscription_id = subscription["id"]
+        # ✅ Update user subscription status
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user:
+            user.is_subscribed = True
+            user.subscription_status = "active"
 
-        print(f"🚫 Subscription Canceled: {stripe_subscription_id}")
+        # ✅ Save payment record
+        billing_entry = models.BillingHistory(
+            user_id=user_id,
+            stripe_customer_id=stripe_customer_id,
+            subscription_id=stripe_subscription_id,
+            amount=amount_paid,
+            currency=currency,
+            status="succeeded",
+        )
+        db.add(billing_entry)
+        db.commit()
 
-        subscription = db.query(models.Subscription).filter(models.Subscription.stripe_subscription_id == stripe_subscription_id).first()
-        if subscription:
-            user = db.query(models.User).filter(models.User.id == subscription.user_id).first()
-            if user:
-                user.subscription_status = "canceled"
-                user.is_subscribed = False
-                db.delete(subscription)  # ✅ Delete subscription record
-                db.commit()
+        # ✅ Remove user_id from cache after use
+        pending_users.pop(stripe_subscription_id, None)
+
+        
 
     return {"status": "success"}
-
-
 # get user subscription status
 @app.get("/subscription_status/{user_id}/")
 async def get_subscription_status(user_id: int, db: Session = Depends(get_db)):
@@ -315,9 +339,6 @@ def reset_password(token: str, new_password: str, db: Session = Depends(get_db))
     return {"message": "Password reset successful"}
 
 
-# handle email sending for password reset
- 
-
 @app.post("/user/reset-password-request")
 def request_password_reset(email: str, db: Session = Depends(get_db)):
     """Generate password reset token and send email."""
@@ -339,7 +360,7 @@ def request_password_reset(email: str, db: Session = Depends(get_db)):
 
 @app.put("/user/change-password")
 def change_password(
-    request: ChangePasswordRequest,  # Accept JSON body
+    request: ChangePasswordRequest, 
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -372,3 +393,23 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+# Billing section
+@app.get("/billing/history/{user_id}")
+def get_billing_history(user_id: int, db: Session = Depends(get_db)):
+    billing_records = db.query(models.BillingHistory).filter_by(user_id=user_id).all()
+    return billing_records
+
+
+# Outdated billing records
+@app.get("/billing/due-date/{user_id}")
+def get_due_date(user_id: int, db: Session = Depends(get_db)):
+    billing_record = db.query(models.BillingHistory).filter_by(user_id=user_id).order_by(models.BillingHistory.created_at.desc()).first()
+    
+    if not billing_record or not billing_record.subscription_id:
+        raise HTTPException(status_code=404, detail="No active subscription found")
+
+    subscription = stripe.Subscription.retrieve(billing_record.subscription_id)
+    next_due_date = datetime.fromtimestamp(subscription.current_period_end)  # Convert Unix timestamp
+
+    return {"next_due_date": next_due_date.strftime("%Y-%m-%d %H:%M:%S")}

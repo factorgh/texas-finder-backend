@@ -1,6 +1,7 @@
 from database import Base
-from sqlalchemy import  Column, Integer, String, ForeignKey,Boolean
+from sqlalchemy import  Column, Integer, String, ForeignKey,Boolean,Float,DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from datetime import datetime
 
 
 # ✅ Fix: Add String(length) for MySQL
@@ -68,9 +69,10 @@ class User(Base):
     password = Column(String(255), nullable=False)
     stripe_customer_id = Column(String(255), nullable=True)
     is_subscribed = Column(Boolean, default=False)
-    subscription_status = Column(String(50), default="inactive")  # ✅ Track status
+    subscription_status = Column(String(50), default="inactive")
 
-    subscriptions = relationship("Subscription", back_populates="user", uselist=False)  # ✅ One-to-one
+    subscriptions = relationship("Subscription", back_populates="user")
+    billing_history = relationship("BillingHistory", back_populates="user")  # ✅ Add this line
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
@@ -84,4 +86,17 @@ class Subscription(Base):
     user = relationship("User", back_populates="subscriptions")
 
 
+class BillingHistory(Base):
+    __tablename__ = "billing_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    stripe_customer_id = Column(String(255), nullable=False)
+    subscription_id = Column(String(255), nullable=True)  # If it's a subscription
+    amount = Column(Float, nullable=False)
+    currency = Column(String(255), default="usd")
+    status = Column(String(255), nullable=False)  # e.g., succeeded, failed, pending
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="billing_history")
 

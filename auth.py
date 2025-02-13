@@ -68,9 +68,9 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
    
 
 
-# # Hash password
-# def hash_password(password: str):
-#     return pwd_context.hash(password)
+# Hash password
+def hash_password(password: str):
+    return pwd_context.hash(password)
 
 # Verify password
 def verify_password(plain_password, hashed_password):

@@ -44,8 +44,16 @@ def get_counties(db: Session):
 def get_operators(db: Session):
     return db.query(Operator).all()
 
-def get_leases(db: Session):
-    return db.query(Lease).all()
+
+
+def get_leases(db: Session, county_id: int, operator_id: int, skip: int = 0, limit: int = 10):
+    return (
+        db.query(Lease)
+        .filter(Lease.county_id == county_id, Lease.operator_id == operator_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 # Get by ID functions
 def get_county_by_id(db: Session, county_id: int):
