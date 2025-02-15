@@ -69,9 +69,9 @@ def create_operator(operator: schemas.OperatorCreate, db: Session = Depends(get_
     return crud.create_operator(db=db, operator=operator)
 
 # Get all operators
-@app.get("/operators/", response_model=List[schemas.Operator])
-def get_operators(db: Session = Depends(get_db)):
-    return crud.get_operators(db=db)
+@app.get("/operators/")
+def get_operators(county_id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    return crud.get_operators(db, county_id, skip, limit)
 
 # Get operator by ID
 @app.get("/operators/{operator_id}", response_model=Optional[schemas.Operator])
@@ -87,13 +87,18 @@ def create_lease(lease: schemas.LeaseCreate, county_id: int, operator_id: int, d
     return crud.create_lease(db=db, lease=lease, county_id=county_id, operator_id=operator_id)
 
 # Get all leases
-@app.get("/leases/", response_model=List[schemas.Lease])
-def get_leases(db: Session = Depends(get_db)):
-    return crud.get_leases(db=db)
+@app.get("/leases/",)
+def get_operators(county_id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    return crud.get_leases(db, county_id, skip, limit)
+
+@app.get("/permits/")
+def get_permits(county_id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    return crud.get_permits(db, county_id, skip, limit)
+
 
 # Get lease by ID
 @app.get("/leases/{lease_id}", response_model=Optional[schemas.Lease])
-def get_lease(lease_id: int, db: Session = Depends(get_db)):
+def get_leases(lease_id: int, db: Session = Depends(get_db)):
     lease = crud.get_lease_by_id(db=db, lease_id=lease_id)
     if lease is None:
         raise HTTPException(status_code=404, detail="Lease not found")
