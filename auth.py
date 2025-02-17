@@ -61,11 +61,19 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
     )
     db.add(create_user_model)
     db.commit()
-    db.refresh(create_user_model)
+    db.refresh(create_user_model)  # Ensures the ID is available
 
-    return {"message": "User created successfully"}
+    return {
+        "message": "User created successfully",
+        "user_id": create_user_model.id,  # ✅ Return user ID
+        "user": {
+            "id": create_user_model.id,
+            "email": create_user_model.email,
+            "username": create_user_model.username,
+            "is_subscribed": create_user_model.is_subscribed,
+        },  # ✅ Optionally return user data
+    }
 
-   
 
 
 # Hash password

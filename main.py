@@ -173,7 +173,7 @@ def create_checkout_session(request: CheckoutRequest, db: Session = Depends(get_
                 }
             ],
             metadata={"user_id": request.user_id}, 
-            success_url="htps://https://texas-oil-finder-client.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
+           success_url="https://texas-oil-finder-client.vercel.app",
             cancel_url="https://texas-oil-finder-client.vercel.app/cancel",
         )
 
