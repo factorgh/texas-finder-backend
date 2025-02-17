@@ -269,7 +269,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
             db.commit()
 
-    # ✅ Payment successfully processed
+        # ✅ Payment successfully processed
     elif event["type"] == "invoice.payment_succeeded":
         invoice = event["data"]["object"]
         print("------------------------------------------Invoice ------------------------------------")
@@ -278,16 +278,22 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
         print(f"💰 Payment Succeeded for Subscription {stripe_subscription_id}")
 
-        # ✅ Retrieve user_id from cache
-        user_id = pending_users.get(stripe_subscription_id)  # Fetch user_id
+        # Retrieve the customer email from the invoice
+        customer_email = invoice.get("customer_email")
+        if not customer_email:
+            print("⚠️ Warning: Customer email not found in invoice!")
+            return {"error": "Customer email not found"}, 400
 
-        if not user_id:
-            print("⚠️ Warning: User ID not found in cache!")
-            return {"error": "User ID not found"}, 400
+        # Fetch user details using the email address
+        user = db.query(models.User).filter(models.User.email == customer_email).first()
+        if not user:
+            print(f"⚠️ Warning: User with email {customer_email} not found in the database!")
+            return {"error": "User not found in the database"}, 400
 
+        user_id = user.id
+        stripe_customer_id = invoice["customer"]
         amount_paid = invoice["amount_paid"] / 100  # Convert from cents
         currency = invoice["currency"]
-        stripe_customer_id = invoice["customer"]
 
         # ✅ Update subscription status
         subscription = db.query(models.Subscription).filter(models.Subscription.stripe_subscription_id == stripe_subscription_id).first()
@@ -295,10 +301,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             subscription.status = "active"
 
         # ✅ Update user subscription status
-        user = db.query(models.User).filter(models.User.id == user_id).first()
-        if user:
-            user.is_subscribed = True
-            user.subscription_status = "active"
+        user.is_subscribed = True
+        user.subscription_status = "active"
 
         # ✅ Save payment record
         billing_entry = models.BillingHistory(
@@ -312,10 +316,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         db.add(billing_entry)
         db.commit()
 
-        # ✅ Remove user_id from cache after use
-        pending_users.pop(stripe_subscription_id, None)
-
-        
+        print(f"✅ Subscription for user {user_id} updated successfully")
 
     return {"status": "success"}
 # get user subscription status
