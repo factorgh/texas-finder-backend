@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session,noload,load_only
 from schemas import CountyCreate, LeaseCreate, OperatorCreate
 from models import County, Lease, Operator,Permit
 from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 # Create functions
 def create_county(db: Session, county: CountyCreate):
     db_county = County(name=county.name)
@@ -30,8 +31,6 @@ def create_lease(db: Session, lease: LeaseCreate, county_id: int, operator_id: i
     db.commit()
     db.refresh(db_lease)
     return db_lease
-
-# Get all functions@app.get("/counties")
 
 
 def get_counties(db: Session):
@@ -85,3 +84,55 @@ def get_operator_by_id(db: Session, operator_id: int):
 
 def get_lease_by_id(db: Session, lease_id: int):
     return db.query(Lease).filter(Lease.id == lease_id).first()
+
+# Function to get the top 10 counties by number of operators
+def get_top_counties_by_operators(db: Session):
+    result = (
+        db.query(County.id, County.name, func.count(Operator.id).label("operator_count"))
+        .join(Operator, Operator.county_id == County.id)
+        .group_by(County.id, County.name)
+        .order_by(func.count(Operator.id).desc())
+        .limit(10)
+        .all()
+    )
+
+    # Convert the result to a list of dictionaries to make it JSON serializable
+    return [
+        {"county_id": county_id, "county_name": county_name, "operator_count": operator_count}
+        for county_id, county_name, operator_count in result
+    ]
+
+
+# Function to get the top 10 counties by number of leases
+def get_top_counties_by_leases(db: Session):
+    result = (
+        db.query(County.id, County.name, func.count(Lease.id).label("lease_count"))
+        .join(Lease, Lease.county_id == County.id)
+        .group_by(County.id, County.name)
+        .order_by(func.count(Lease.id).desc())
+        .limit(10)
+        .all()
+    )
+
+    # Convert the result to a list of dictionaries to make it JSON serializable
+    return [
+        {"county_id": county_id, "county_name": county_name, "lease_count": lease_count}
+        for county_id, county_name, lease_count in result
+    ]
+
+# Function to get the top 10 counties by number of permits
+def get_top_counties_by_permits(db: Session):
+    result = (
+        db.query(County.id, County.name, func.count(Permit.id).label("permit_count"))
+        .join(Permit, Permit.county_id == County.id)
+        .group_by(County.id, County.name)
+        .order_by(func.count(Permit.id).desc())
+        .limit(10)
+        .all()
+    )
+
+    # Convert the result to a list of dictionaries to make it JSON serializable
+    return [
+        {"county_id": county_id, "county_name": county_name, "permit_count": permit_count}
+        for county_id, county_name, permit_count in result
+    ]

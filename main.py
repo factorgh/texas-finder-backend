@@ -45,6 +45,20 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+@app.get("/counties/top-operators")
+def top_counties_by_operators(db: Session = Depends(get_db)):
+    return crud.get_top_counties_by_operators(db)
+
+@app.get("/counties/top-leases")
+def top_counties_by_leases(db: Session = Depends(get_db)):
+    return crud.get_top_counties_by_leases(db)
+
+@app.get("/counties/top-permits")
+def top_counties_by_permits(db: Session = Depends(get_db)):
+    return crud.get_top_counties_by_permits(db)
+
+# Dynamic route (should be last)
+
 # Create county
 @app.post("/counties/", response_model=schemas.County)
 def create_county(county: schemas.CountyCreate, db: Session = Depends(get_db)):
@@ -225,6 +239,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         session = event["data"]["object"]
         user_id = session["metadata"]["user_id"]
         stripe_subscription_id = session.get("subscription")
+        print('------------------------------------------------------------------stripe checkout---------------------------')
+        print(stripe_subscription_id)
+
 
         print(f"✅ Checkout Completed: User {user_id}, Subscription ID {stripe_subscription_id}")
 
@@ -233,6 +250,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             pending_users[stripe_subscription_id] = user_id  # Store user_id linked to subscription
 
         user = db.query(models.User).filter(models.User.id == user_id).first()
+        print('------------------------------------------------------------------stripe user---------------------------')
+        print(user)
         if user:
             subscription = db.query(models.Subscription).filter(models.Subscription.user_id == user_id).first()
             if not subscription:
@@ -418,3 +437,6 @@ def get_due_date(user_id: int, db: Session = Depends(get_db)):
     next_due_date = datetime.fromtimestamp(subscription.current_period_end)  # Convert Unix timestamp
 
     return {"next_due_date": next_due_date.strftime("%Y-%m-%d %H:%M:%S")}
+
+
+
