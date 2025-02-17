@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 Base.metadata.create_all(bind=engine)
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Secure API Key
+STRIPE_WEBHOOK_SECRET=os.getenv("STRIPE_WEBHOOK_SECRET")
 
 router = APIRouter()
 
@@ -172,8 +173,8 @@ def create_checkout_session(request: CheckoutRequest, db: Session = Depends(get_
                 }
             ],
             metadata={"user_id": request.user_id}, 
-            success_url="http://localhost:5173/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="http://localhost:5173/cancel",
+            success_url="htps://https://texas-oil-finder-client.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://texas-oil-finder-client.vercel.app/cancel",
         )
 
 
@@ -219,7 +220,7 @@ async def user(user:user_dependency,db:db_dependency):
 
     # Handling of stripe webhook 
   
-STRIPE_SECRET = "whsec_2659890a063d46e3d08b474fddc6c89960e65a4bac35879befb917565bd307ec"
+# STRIPE_SECRET = "whsec_2659890a063d46e3d08b474fddc6c89960e65a4bac35879befb917565bd307ec"
 
 
 pending_users = {}
@@ -230,7 +231,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     sig_header = request.headers.get("Stripe-Signature", "")
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_SECRET)
+        event = stripe.Webhook.construct_event(payload, sig_header,STRIPE_WEBHOOK_SECRET)
     except stripe.error.SignatureVerificationError:
         return {"error": "Invalid signature"}, 400
 
