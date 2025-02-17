@@ -223,10 +223,11 @@ async def user(user:user_dependency,db:db_dependency):
 # STRIPE_SECRET = "whsec_2659890a063d46e3d08b474fddc6c89960e65a4bac35879befb917565bd307ec"
 
 
-pending_users = {}
+
 
 @app.post("/webhook/")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    pending_users = {}
     payload = await request.body()
     sig_header = request.headers.get("Stripe-Signature", "")
 
