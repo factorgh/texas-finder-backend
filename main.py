@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, APIRouter,Request, Response
+from fastapi import FastAPI, Depends, HTTPException, APIRouter,Request, Response,Query
 from sqlalchemy.orm import Session
 from typing import Dict, List, Optional
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,8 +85,8 @@ def create_operator(operator: schemas.OperatorCreate, db: Session = Depends(get_
 
 # Get all operators
 @app.get("/operators/")
-def get_operators(county_id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    return crud.get_operators(db, county_id, skip, limit)
+def get_operators(county_id: int, skip: int = 0, limit: int = 10, search: str = Query(None),db: Session = Depends(get_db)):
+    return crud.get_operators(db, county_id, skip, limit,search)
 
 # Get operator by ID
 @app.get("/operators/{operator_id}", response_model=Optional[schemas.Operator])
@@ -103,12 +103,12 @@ def create_lease(lease: schemas.LeaseCreate, county_id: int, operator_id: int, d
 
 # Get all leases
 @app.get("/leases/",)
-def get_operators(county_id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    return crud.get_leases(db, county_id, skip, limit)
+def get_leases(county_id: int, skip: int = 0, limit: int = 10, search: str = Query(None),db: Session = Depends(get_db)):
+    return crud.get_leases(db, county_id, skip, limit,search)
 
 @app.get("/permits/")
-def get_permits(county_id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    return crud.get_permits(db, county_id, skip, limit)
+def get_permits(county_id: int, skip: int = 0,search: str = Query(None),limit: int = 10, db: Session = Depends(get_db)):
+    return crud.get_permits(db, county_id, skip, limit,search)
 
 
 # Get lease by ID

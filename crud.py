@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session,noload,load_only
 from schemas import CountyCreate, LeaseCreate, OperatorCreate
 from models import County, Lease, Operator,Permit
 from sqlalchemy.orm import selectinload
-from sqlalchemy import func
+from sqlalchemy import func,or_
 # Create functions
 def create_county(db: Session, county: CountyCreate):
     db_county = County(name=county.name)
@@ -44,28 +44,36 @@ def get_operators(db: Session):
     return db.query(Operator).all()
 
 
+def get_leases(db: Session, county_id: int, skip: int = 0, limit: int = 10, search: str = None):
+    query = db.query(Lease).filter(Lease.county_id == county_id)
 
-def get_leases(db: Session, county_id: int, skip: int = 0, limit: int = 10):
-    total = db.query(Lease).filter(Lease.county_id == county_id).count()  # ✅ Count total records
-    leases = (
-        db.query(Lease)
-        .filter(Lease.county_id == county_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    if search:
+        query = query.filter(
+            or_(
+                Lease.lease_name.ilike(f"%{search}%"),  # ✅ Case-insensitive search in lease name
+                Lease.operator_name.ilike(f"%{search}%")  # ✅ Also search in operator name
+            )
+        )
+
+    total = query.count()
+    leases = query.offset(skip).limit(limit).all()
+
     return {"total": total, "leases": leases}
-def get_operators(db: Session, county_id: int, skip: int = 0, limit: int = 10):
-    total = db.query(Operator).filter(Operator.county_id == county_id).count()  # ✅ Count total records
-    operators = (
-        db.query(Operator)
-        .filter(Operator.county_id == county_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    return {"total": total, "operators": operators}
-def get_permits(db: Session, county_id: int, skip: int = 0, limit: int = 50, search: str = ""):
+
+def get_operators(db: Session, county_id: int, skip: int = 0, limit: int = 10,search: str = None):
+    query = db.query(Operator).filter(Operator.county_id == county_id) # ✅ Count total records
+
+    if search:
+        query = query.filter(Operator.operator_name.ilike(f"%{search}%"))  # ✅ Case-insensitive search
+
+    total = query.count()  # ✅ Count total records after filtering
+    operators = query.offset(skip).limit(limit).all()  # ✅ Get operators count
+
+    return { "operators": operators}
+
+
+
+def get_permits(db: Session, county_id: int, skip: int = 0, limit: int = 50, search: str = None):
     query = db.query(Permit).filter(Permit.county_id == county_id)
 
     if search:
@@ -75,6 +83,8 @@ def get_permits(db: Session, county_id: int, skip: int = 0, limit: int = 50, sea
     permits = query.offset(skip).limit(limit).all()
 
     return {"total": total, "permits": permits}  # ✅ Return total & data
+
+
 # Get by ID functions
 def get_county_by_id(db: Session, county_id: int):
     return db.query(County).filter(County.id == county_id).first()
