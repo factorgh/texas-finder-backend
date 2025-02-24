@@ -1,14 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException, APIRouter,Request, Response,Query
-from sqlalchemy.orm import Session
+from fastapi import FastAPI, Depends, HTTPException, APIRouter,Request, Response,Query # type: ignore
+from sqlalchemy.orm import Session # type: ignore
 from typing import Dict, List, Optional
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from sqlalchemy import func # type: ignore
 import models
 from automation import run_every_two_weeks
 import stripe # type: ignore
 import os
 from database import get_db,Base,engine
-from starlette import status
+from starlette import status # type: ignore
 from typing import Annotated
 from schemas import CheckoutRequest,CheckoutResponse,ChangePasswordRequest
 import auth
